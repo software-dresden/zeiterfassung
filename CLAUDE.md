@@ -79,7 +79,7 @@ IndexedDB-Datenbank: `zeiterfassung-db-<userId>` (Version 2), **eine pro Benutze
   (`src/hooks/useProfile.tsx`, Rolle offline aus localStorage gecacht). Deaktivierte/profillose Konten
   werden abgemeldet; die Meldung erscheint auf der Login-Seite.
 - **Admin-Tab** (`/admin`, nur für Administratoren sichtbar): Benutzer anlegen (Benutzername **oder**
-  E-Mail + Passwort), auflisten, Passwort ändern, deaktivieren/aktivieren, löschen (löscht auch deren
+  E-Mail + Passwort), auflisten, Anmeldename/E-Mail und Rolle ändern (Aktion `update`; Einträge bleiben, letzter Admin und eigene Rolle sind geschützt), Passwort ändern, deaktivieren/aktivieren, löschen (löscht auch deren
   Einträge). Alles läuft über die Edge Function `supabase/functions/admin-users/index.ts`
   (`src/lib/adminApi.ts`); sie prüft serverseitig die Admin-Rolle. Sie braucht Internet.
 - **Benutzername:** wird auf die Pseudo-E-Mail `<name>@users.zeiterfassung.local` abgebildet

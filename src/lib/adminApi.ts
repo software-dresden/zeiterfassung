@@ -34,6 +34,10 @@ export const listUsers = async (): Promise<ApiResult<AdminUser[]>> => {
 export const createUser = (input: { identifier: string; password: string; role: UserRole }) =>
   call<{ id: string }>({ action: 'create', ...input });
 
+// Change the login (username or e-mail) and/or the role. Time entries stay with the user.
+export const updateUser = (userId: string, changes: { identifier?: string; role?: UserRole }) =>
+  call<{ ok: true }>({ action: 'update', user_id: userId, ...changes });
+
 export const setUserPassword = (userId: string, password: string) =>
   call<{ ok: true }>({ action: 'setPassword', user_id: userId, password });
 

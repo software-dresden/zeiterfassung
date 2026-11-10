@@ -9,6 +9,7 @@ import {
   resetUserMfa,
   setUserDisabled,
   setUserPassword,
+  updateUser,
 } from '@/lib/adminApi';
 import { useProfile } from '@/hooks/useProfile';
 import { useToast } from '@/components/ui/Toast';
@@ -42,6 +43,9 @@ export default function AdminPage() {
   const [role, setRole] = useState<UserRole>('user');
   const [creating, setCreating] = useState(false);
 
+  const [editTarget, setEditTarget] = useState<AdminUser | null>(null);
+  const [editIdentifier, setEditIdentifier] = useState('');
+  const [editRole, setEditRole] = useState<UserRole>('user');
   const [passwordTarget, setPasswordTarget] = useState<AdminUser | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
@@ -80,6 +84,35 @@ export default function AdminPage() {
     setPassword('');
     setRole('user');
     showToast('Benutzer angelegt', 'success');
+    reload();
+  };
+
+  const openEdit = (user: AdminUser) => {
+    setEditTarget(user);
+    setEditIdentifier(user.username ?? user.email ?? '');
+    setEditRole(user.role ?? 'user');
+  };
+
+  const handleEdit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+    const changes: { identifier?: string; role?: UserRole } = {};
+    const current = editTarget.username ?? editTarget.email ?? '';
+    if (editIdentifier.trim().toLowerCase() !== current.toLowerCase()) changes.identifier = editIdentifier;
+    if (editRole !== editTarget.role) changes.role = editRole;
+    if (Object.keys(changes).length === 0) {
+      setEditTarget(null);
+      return;
+    }
+    setBusy(true);
+    const result = await updateUser(editTarget.id, changes);
+    setBusy(false);
+    if (!result.ok) {
+      showToast(result.error, 'error');
+      return;
+    }
+    setEditTarget(null);
+    showToast('Benutzer geändert', 'success');
     reload();
   };
 
@@ -248,6 +281,11 @@ export default function AdminPage() {
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
+                    {user.has_profile && (
+                      <IconButton label="Anmeldename / Rolle ändern" onClick={() => openEdit(user)}>
+                        <PeopleIcon className="h-4 w-4" />
+                      </IconButton>
+                    )}
                     <IconButton
                       label="Passwort ändern"
                       onClick={() => {
@@ -284,6 +322,48 @@ export default function AdminPage() {
       </section>
 
       <TemplateSettings />
+
+      <Modal
+        open={!!editTarget}
+        onClose={() => setEditTarget(null)}
+        title={editTarget ? `Benutzer ändern: ${displayName(editTarget)}` : undefined}
+      >
+        <form onSubmit={handleEdit} className="flex flex-col gap-4">
+          <Input
+            label="Benutzername oder E-Mail"
+            value={editIdentifier}
+            onChange={(e) => setEditIdentifier(e.target.value)}
+            autoCapitalize="none"
+            autoComplete="off"
+            required
+            fullWidth
+          />
+          {editTarget?.id !== selfId && (
+            <Select
+              label="Rolle"
+              value={editRole}
+              onChange={(e) => setEditRole(e.target.value as UserRole)}
+              fullWidth
+            >
+              <option value="user">Benutzer</option>
+              <option value="admin">Administrator</option>
+            </Select>
+          )}
+          <p className="text-xs text-text-muted">
+            Zeiteinträge und Passwort bleiben erhalten. Der Benutzer meldet sich künftig mit dem neuen
+            Namen an; ein bereits angemeldetes Gerät bleibt angemeldet. Der Name im Bericht
+            (&bdquo;Techniker&ldquo;) wird aus dem Anmeldenamen abgeleitet.
+          </p>
+          <div className="flex gap-2">
+            <Button type="submit" disabled={busy}>
+              Speichern
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => setEditTarget(null)}>
+              Abbrechen
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       <Modal
         open={!!passwordTarget}

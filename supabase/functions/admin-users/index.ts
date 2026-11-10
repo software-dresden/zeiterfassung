@@ -197,6 +197,69 @@ Deno.serve(async (req: Request) => {
   const userId = String(body.user_id ?? '');
   if (!userId) return fail('Benutzer fehlt.');
 
+  // Change the login (username or e-mail) and/or the role of a user. Time entries belong
+  // to the user id, so nothing is lost when the login changes. The user stays signed in.
+  if (action === 'update') {
+    const { data: target } = await admin
+      .from('profiles')
+      .select('username, role')
+      .eq('id', userId)
+      .maybeSingle();
+    if (!target) return fail('Dieser Benutzer hat keinen Zugang.');
+
+    const authUpdate: { email?: string; email_confirm?: boolean; user_metadata?: Record<string, unknown> } = {};
+    const profileUpdate: { username?: string | null; role?: string } = {};
+
+    if (typeof body.identifier === 'string') {
+      const identifier = body.identifier.trim();
+      let email: string;
+      let username: string | null = null;
+      if (identifier.includes('@')) {
+        email = identifier.toLowerCase();
+        if (!EMAIL_PATTERN.test(email)) return fail('Ungültige E-Mail-Adresse.');
+      } else {
+        username = identifier.toLowerCase();
+        if (!USERNAME_PATTERN.test(username)) {
+          return fail('Benutzername: 3–32 Zeichen, nur a–z, 0–9, Punkt, Unterstrich und Bindestrich.');
+        }
+        email = `${username}@${SYNTHETIC_EMAIL_DOMAIN}`;
+      }
+      if (username) {
+        const { data: taken } = await admin
+          .from('profiles')
+          .select('id')
+          .eq('username', username)
+          .neq('id', userId)
+          .maybeSingle();
+        if (taken) return fail('Dieser Benutzername ist bereits vergeben.');
+      }
+      authUpdate.email = email;
+      authUpdate.email_confirm = true;
+      authUpdate.user_metadata = { username };
+      profileUpdate.username = username;
+    }
+
+    if (body.role === 'admin' || body.role === 'user') {
+      if (body.role !== target.role) {
+        if (userId === caller.id) return fail('Sie können Ihre eigene Rolle nicht ändern.');
+        if (target.role === 'admin' && (await otherActiveAdmins(userId)) === 0) {
+          return fail('Der letzte aktive Administrator kann nicht herabgestuft werden.');
+        }
+        profileUpdate.role = body.role;
+      }
+    }
+
+    if (Object.keys(authUpdate).length > 0) {
+      const { error } = await admin.auth.admin.updateUserById(userId, authUpdate);
+      if (error) return fail(translateAuthError(error.message));
+    }
+    if (Object.keys(profileUpdate).length > 0) {
+      const { error } = await admin.from('profiles').update(profileUpdate).eq('id', userId);
+      if (error) return fail('Änderung konnte nicht gespeichert werden.', 500);
+    }
+    return json({ ok: true });
+  }
+
   if (action === 'setPassword') {
     const password = String(body.password ?? '');
     if (password.length < MIN_PASSWORD_LENGTH) {
