@@ -43,6 +43,42 @@ export const sessionFileBaseName = (entry: TimeEntry, customerName: string): str
 
 // Notes are tidied up (uniform bullets, no stray blank lines) but never rewritten, and
 // they never leave the app for translation.
+const TXT_WIDTH = 78;
+
+// Notepad and many mail apps do not wrap text, so TXT lines are wrapped at a fixed width.
+// A bullet ("• ", "– ", "1. ") or leading indent is repeated as blank space on the
+// continuation lines (hanging indent), so wrapped list items stay readable.
+export const wrapTxtLine = (line: string, width = TXT_WIDTH, extraIndent = ''): string[] => {
+  const prefix = (line.match(/^\s*(?:(?:[•–\-*]|\d+[.)])\s+)?/) ?? [''])[0];
+  const text = line.slice(prefix.length).trimEnd();
+  const first = extraIndent + prefix;
+  const rest = ' '.repeat(first.length);
+  if (!text) return [first.trimEnd()];
+  const out: string[] = [];
+  let current = '';
+  const flush = () => {
+    out.push((out.length === 0 ? first : rest) + current);
+    current = '';
+  };
+  for (let word of text.split(/\s+/)) {
+    const room = () => width - (out.length === 0 ? first.length : rest.length);
+    while (word.length > room()) {
+      // A single word longer than a line (URL, path): split it hard.
+      if (current) flush();
+      current = word.slice(0, room());
+      word = word.slice(room());
+      flush();
+    }
+    if (current && current.length + 1 + word.length > room()) flush();
+    current = current ? `${current} ${word}` : word;
+  }
+  if (current) flush();
+  return out;
+};
+
+export const wrapTxt = (text: string, width = TXT_WIDTH, extraIndent = ''): string[] =>
+  text.split(/\r?\n/).flatMap((l) => wrapTxtLine(l, width, extraIndent));
+
 export const noteText = (notes: string | null): string => notesToPlain(notes);
 
 // Semicolon-separated (German Excel standard). A single session is just a report
@@ -128,16 +164,16 @@ export const buildReportTxt = (
     );
 
     for (const entry of row.entries) {
-      const note = noteFor(entry.notes).replace(/\s*\r?\n\s*/g, ' ').trim();
+      const note = noteFor(entry.notes).trim();
       const parts = [
         formatEntryDate(entry),
         sessionTypeLabel(entry.session_type_id),
         `${formatAEComma(entry.duration_minutes)} AE`,
         minutesToHHMM(entry.duration_minutes),
       ];
-      if (note) parts.push(note);
-      lines.push(parts.join(' | '));
-      for (const extra of materialAndTravelLines(entry)) lines.push(`    ${extra}`);
+      lines.push(...wrapTxt(parts.join(' | ')));
+      if (note) lines.push(...wrapTxt(note, TXT_WIDTH, '    '));
+      for (const extra of materialAndTravelLines(entry)) lines.push(...wrapTxt(extra, TXT_WIDTH, '    '));
     }
 
     lines.push(
@@ -176,8 +212,8 @@ export const buildSessionTxt = (
     lines.push('', 'Material:', ...(entry.materials ?? []).map((item) => `- ${formatMaterialLine(item)}`));
   }
   const notes = entry.notes?.trim();
-  if (notes) lines.push('', 'Notizen:', notes.replace(/\r?\n/g, '\r\n'));
-  return lines.join('\r\n') + '\r\n';
+  if (notes) lines.push('', 'Notizen:', notesToPlain(notes));
+  return lines.flatMap((l) => wrapTxt(l)).join('\r\n') + '\r\n';
 };
 
 // File object for the Web Share API. Plain 'text/plain' (no charset parameter)
