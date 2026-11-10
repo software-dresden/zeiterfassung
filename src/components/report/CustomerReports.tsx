@@ -13,7 +13,7 @@ import { ExportButtons } from '@/components/report/ExportButtons';
 import { SessionExportButtons } from '@/components/report/SessionExportButtons';
 import { ListIcon, PeopleIcon } from '@/components/nav/icons';
 import { minutesToAE, minutesToHHMM } from '@/lib/ae';
-import { formatDateDDMMYYYY, formatEUR, safeFilePart } from '@/lib/export';
+import { formatEntryDate, formatEUR, safeFilePart } from '@/lib/export';
 import { buildMonthlyRows } from '@/lib/reportRows';
 import { formatKm, materialAndTravelLines, sumKm } from '@/lib/materials';
 import { Customer, TimeEntry } from '@/types';
@@ -169,7 +169,7 @@ export const CustomerReports = () => {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-text">
-                        {formatDateDDMMYYYY(entry.entry_date)} · {sessionTypeLabel(entry.session_type_id)}
+                        {formatEntryDate(entry)} · {sessionTypeLabel(entry.session_type_id)}
                       </p>
                       <SignatureBadge entry={entry} />
                     </div>

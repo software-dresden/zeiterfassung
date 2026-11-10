@@ -12,6 +12,8 @@ export interface EntryFormValues {
   customer_id: string;
   session_type_id: string;
   entry_date: string;
+  /** Set (and > entry_date) when the work spanned several days: one entry from entry_date to end_date. */
+  end_date?: string | null;
   duration_minutes: number;
   notes: string;
 }
@@ -21,6 +23,8 @@ interface EntryFormProps {
   onSubmit: (values: EntryFormValues) => void | Promise<void>;
   onCancel?: () => void;
   submitLabel?: string;
+  /** Offers a date range (work spread over several days, still one entry). */
+  allowRange?: boolean;
 }
 
 const todayDateString = (): string => {
@@ -36,6 +40,7 @@ export const EntryForm = ({
   onSubmit,
   onCancel,
   submitLabel = 'Eintrag speichern',
+  allowRange = false,
 }: EntryFormProps) => {
   const { activeCustomers } = useCustomers();
   const { sessionTypes } = useSessionTypes();
@@ -43,6 +48,8 @@ export const EntryForm = ({
   const [customerId, setCustomerId] = useState(initialValues?.customer_id ?? '');
   const [sessionTypeId, setSessionTypeId] = useState(initialValues?.session_type_id ?? '');
   const [entryDate, setEntryDate] = useState(initialValues?.entry_date ?? todayDateString());
+  const [isRange, setIsRange] = useState(!!initialValues?.end_date);
+  const [endDate, setEndDate] = useState(initialValues?.end_date ?? initialValues?.entry_date ?? todayDateString());
   const [durationMinutes, setDurationMinutes] = useState(initialValues?.duration_minutes ?? 0);
   const [notes, setNotes] = useState(initialValues?.notes ?? '');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -53,6 +60,7 @@ export const EntryForm = ({
     if (!sessionTypeId) newErrors.session_type_id = 'Session-Typ ist erforderlich';
     if (!entryDate) newErrors.entry_date = 'Datum ist erforderlich';
     if (!durationMinutes || durationMinutes <= 0) newErrors.duration = 'Dauer ist erforderlich';
+    if (isRange && entryDate && endDate < entryDate) newErrors.end_date = 'Das Enddatum liegt vor dem Startdatum';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -64,6 +72,7 @@ export const EntryForm = ({
       customer_id: customerId,
       session_type_id: sessionTypeId,
       entry_date: entryDate,
+      end_date: isRange && endDate > entryDate ? endDate : null,
       duration_minutes: durationMinutes,
       notes,
     });
@@ -102,12 +111,48 @@ export const EntryForm = ({
       </Select>
 
       <div>
-        <label className="mb-1 block text-sm text-text-muted">Datum *</label>
-        <DatePicker value={entryDate} onChange={setEntryDate} />
+        <label className="mb-1 block text-sm text-text-muted">{isRange ? 'Von *' : 'Datum *'}</label>
+        <DatePicker
+          value={entryDate}
+          onChange={(v) => {
+            setEntryDate(v);
+            if (endDate < v) setEndDate(v);
+          }}
+        />
         {errors.entry_date && <p className="mt-1 text-xs text-danger">{errors.entry_date}</p>}
       </div>
 
+      {allowRange && (
+        <label className="flex items-center gap-2 text-sm text-text">
+          <input
+            type="checkbox"
+            checked={isRange}
+            onChange={(e) => {
+              setIsRange(e.target.checked);
+              if (e.target.checked && endDate < entryDate) setEndDate(entryDate);
+            }}
+            className="h-4 w-4 accent-[var(--accent)]"
+          />
+          Über mehrere Tage (Zeitraum)
+        </label>
+      )}
+
+      {allowRange && isRange && (
+        <>
+          <div>
+            <label className="mb-1 block text-sm text-text-muted">Bis *</label>
+            <DatePicker value={endDate} onChange={setEndDate} />
+            {errors.end_date && <p className="mt-1 text-xs text-danger">{errors.end_date}</p>}
+          </div>
+        </>
+      )}
+
       <AEInput minutes={durationMinutes} onChange={setDurationMinutes} />
+      {allowRange && isRange && (
+        <p className="-mt-2 text-xs text-text-muted">
+          Gesamtdauer für den ganzen Zeitraum. Es wird ein einziger Eintrag angelegt.
+        </p>
+      )}
       {errors.duration && <p className="-mt-3 text-xs text-danger">{errors.duration}</p>}
 
       <div>

@@ -243,6 +243,13 @@ nicht in ein PDF umgewandelt werden (das bräuchte einen Server).
   deutschen Rechnung („Technikerbericht“, Logo oben rechts, Absenderzeile, Infoblock, Positionstabelle,
   Summen, Grußformel, Fußzeile mit Adresse). Logo: `scripts/assets/mct-logo.png`, **im Dokumentkörper oben rechts** (nicht in der Kopfzeile, viele Viewer zeichnen Bilder aus Kopfzeilen nicht).
 
+## Zeitraum-Einträge
+
+Ein Eintrag kann mehrere Tage umfassen (`time_entries.end_date`, nur gesetzt wenn > `entry_date`): Checkbox „Über mehrere Tage“
+in „Neue Erfassung“ und im Bearbeiten-Formular, die Dauer ist die Gesamtdauer. Anzeige und alle Exporte nutzen `formatEntryDate`
+(`src/lib/export.ts`: „01.01.2027 – 10.01.2027“, Word-Feld `datum`). Monatsberichte und Filter ordnen den Eintrag nach dem
+**Startdatum** zu (ein Zeitraum über den Monatswechsel zählt ganz im Startmonat).
+
 ## Export & Versand
 
 Abrechnung als PDF, CSV (Semikolon, UTF-8 mit BOM) und TXT (`src/lib/export.ts`). Pro Session gibt es

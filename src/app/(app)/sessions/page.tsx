@@ -12,6 +12,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { MonthYearPicker } from '@/components/ui/MonthYearPicker';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListIcon, MailIcon } from '@/components/nav/icons';
+import { formatEntryDate } from '@/lib/export';
 import { EntryForm, EntryFormValues } from '@/components/entry/EntryForm';
 import { minutesToAE, minutesToHHMM, formatAE } from '@/lib/ae';
 import { sendSessionByMail } from '@/lib/mail';
@@ -19,11 +20,6 @@ import { materialAndTravelLines } from '@/lib/materials';
 import { TimeEntry } from '@/types';
 
 const PAGE_SIZE = 50;
-
-const formatDateDDMMYYYY = (isoDate: string): string => {
-  const [y, m, d] = isoDate.split('-');
-  return `${d}.${m}.${y}`;
-};
 
 const currentMonthValue = (): string => {
   const d = new Date();
@@ -154,7 +150,7 @@ export default function SessionsPage() {
               {pageEntries.map((entry) => (
                 <tr key={entry.id} className="border-b border-border last:border-b-0 hover:bg-surface-2">
                   <td className="whitespace-nowrap px-3 py-2 text-text">
-                    {formatDateDDMMYYYY(entry.entry_date)}
+                    {formatEntryDate(entry)}
                   </td>
                   <td
                     className="max-w-[180px] truncate px-3 py-2 text-text"
@@ -260,12 +256,14 @@ export default function SessionsPage() {
               customer_id: editingEntry.customer_id,
               session_type_id: editingEntry.session_type_id,
               entry_date: editingEntry.entry_date,
+              end_date: editingEntry.end_date,
               duration_minutes: editingEntry.duration_minutes,
               notes: editingEntry.notes ?? '',
             }}
             onSubmit={handleUpdate}
             onCancel={() => setEditingEntry(null)}
             submitLabel="Speichern"
+            allowRange
           />
         )}
       </Modal>

@@ -5,7 +5,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { SignaturePad } from '@/components/signature/SignaturePad';
 import { formatAE, minutesToHHMM } from '@/lib/ae';
-import { formatDateDDMMYYYY } from '@/lib/export';
+import { formatEntryDate } from '@/lib/export';
 import { formatKm, formatMaterialLine, hasMaterials, hasTravel } from '@/lib/materials';
 import { TimeEntry } from '@/types';
 
@@ -46,7 +46,7 @@ export const SignatureModal = ({
   const [technicianSignature, setTechnicianSignature] = useState<string | null>(null);
   const [current, setCurrent] = useState<string | null>(null);
 
-  const date = formatDateDDMMYYYY(entry.entry_date);
+  const date = formatEntryDate(entry);
   const recap = `${customerName} · ${date} · ${formatAE(entry.duration_minutes)}`;
 
   const finish = (technician: string | null, customer: string | null) => {

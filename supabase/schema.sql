@@ -49,6 +49,7 @@ create table time_entries (
   duration_minutes integer not null,
   notes text,
   entry_date date not null default current_date,
+  end_date date,  -- last day when the work spanned several days (entry_date = first)
   started_at timestamptz,
   ended_at timestamptz,
   created_at timestamptz default now(),
@@ -197,3 +198,8 @@ alter default privileges for role postgres in schema public revoke all on sequen
 -- Supabase's event-trigger helper must not be callable through the API (only exists on hosted projects):
 -- revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
 -- Two-factor enforcement in the database is a separate, deliberate step: supabase/mfa_enforcement.sql.
+
+-- Date range entries: one entry from entry_date to end_date
+alter table public.time_entries add column if not exists end_date date;
+alter table public.time_entries drop constraint if exists time_entries_end_date_check;
+alter table public.time_entries add constraint time_entries_end_date_check check (end_date is null or end_date > entry_date);

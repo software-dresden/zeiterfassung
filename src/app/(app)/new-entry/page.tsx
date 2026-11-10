@@ -25,6 +25,7 @@ export default function NewEntryPage() {
       duration_minutes: values.duration_minutes,
       notes: values.notes || null,
       entry_date: values.entry_date,
+      end_date: values.end_date,
     });
     setLastValues({ customer_id: values.customer_id, session_type_id: values.session_type_id });
     setJustSaved(true);
@@ -60,6 +61,7 @@ export default function NewEntryPage() {
             initialValues={lastValues ?? undefined}
             onSubmit={handleSubmit}
             submitLabel="Eintrag speichern"
+            allowRange
           />
         )}
       </div>

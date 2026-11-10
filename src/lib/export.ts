@@ -19,6 +19,12 @@ export const formatDateDDMMYYYY = (isoDate: string): string => {
   return `${d}.${m}.${y}`;
 };
 
+/** "14.01.2027", or "01.01.2027 – 10.01.2027" when the entry spans several days. */
+export const formatEntryDate = (entry: { entry_date: string; end_date?: string | null }): string =>
+  entry.end_date && entry.end_date > entry.entry_date
+    ? `${formatDateDDMMYYYY(entry.entry_date)} – ${formatDateDDMMYYYY(entry.end_date)}`
+    : formatDateDDMMYYYY(entry.entry_date);
+
 const formatAEComma = (minutes: number): string => minutesToAE(minutes).toFixed(1).replace('.', ',');
 
 // Keeps a customer name usable as part of a file name.
@@ -63,7 +69,7 @@ export const buildReportCsv = (
         .replace(/\r?\n/g, ' ');
       lines.push(
         [
-          formatDateDDMMYYYY(entry.entry_date),
+          formatEntryDate(entry),
           row.customer.name,
           sessionTypeLabel(entry.session_type_id),
           ae.toFixed(1).replace('.', ','),
@@ -124,7 +130,7 @@ export const buildReportTxt = (
     for (const entry of row.entries) {
       const note = noteFor(entry.notes).replace(/\s*\r?\n\s*/g, ' ').trim();
       const parts = [
-        formatDateDDMMYYYY(entry.entry_date),
+        formatEntryDate(entry),
         sessionTypeLabel(entry.session_type_id),
         `${formatAEComma(entry.duration_minutes)} AE`,
         minutesToHHMM(entry.duration_minutes),
@@ -160,7 +166,7 @@ export const buildSessionTxt = (
     'ZEITERFASSUNG',
     '',
     `Kunde: ${customerName}`,
-    `Datum: ${formatDateDDMMYYYY(entry.entry_date)}`,
+    `Datum: ${formatEntryDate(entry)}`,
     `Typ: ${sessionTypeLabel}`,
     `Dauer: ${formatAEComma(entry.duration_minutes)} AE (${minutesToHHMM(entry.duration_minutes)})`,
   ];

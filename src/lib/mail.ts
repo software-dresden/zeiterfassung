@@ -5,7 +5,7 @@ import {
   buildSessionTxt,
   createTextFile,
   downloadTextFile,
-  formatDateDDMMYYYY,
+  formatEntryDate,
   safeFilePart,
 } from '@/lib/export';
 
@@ -33,7 +33,7 @@ export const buildSessionMail = (
   customerName: string,
   sessionTypeLabel: string
 ): SessionMail => {
-  const date = formatDateDDMMYYYY(entry.entry_date);
+  const date = formatEntryDate(entry);
   const duration = `${minutesToAE(entry.duration_minutes).toFixed(1).replace('.', ',')} AE (${minutesToHHMM(
     entry.duration_minutes
   )})`;

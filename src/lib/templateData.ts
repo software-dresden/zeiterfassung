@@ -1,7 +1,7 @@
 import { Customer, MonthlyReportRow, ReportTemplateKind, TimeEntry } from '@/types';
 import { minutesToAE, minutesToHHMM } from '@/lib/ae';
 import { GERMAN_MONTHS } from '@/lib/germanMonths';
-import { formatDateDDMMYYYY } from '@/lib/export';
+import { formatEntryDate } from '@/lib/export';
 import { formatKm, formatMaterialLine, hasMaterials, hasTravel, sumKm } from '@/lib/materials';
 import { notesToPlain, notesToTemplateLines } from '@/lib/notes';
 
@@ -171,7 +171,7 @@ export const buildMonthlyTemplateData = (input: MonthlyTemplateInput) => {
     // `pos` restarts at 1 for every customer, like the position numbers on an invoice.
     sessions: row.entries.map((e, index) => ({
       pos: String(index + 1),
-      datum: formatDateDDMMYYYY(e.entry_date),
+      datum: formatEntryDate(e),
       kunde: row.customer.name,
       typ: sessionTypeLabel(e.session_type_id),
       ae: formatAE(e.duration_minutes),
@@ -245,7 +245,7 @@ export const buildSessionTemplateData = (input: SessionTemplateInput) => {
     nummer: sessionNumber(entry),
     kunde: customer.name,
     kunde_adresse: customer.address ?? '',
-    datum: formatDateDDMMYYYY(entry.entry_date),
+    datum: formatEntryDate(entry),
     beginn: formatClock(entry.started_at),
     ende: formatClock(entry.ended_at),
     typ: sessionTypeLabel,

@@ -29,6 +29,8 @@ export interface TimeEntry {
   duration_minutes: number;
   notes: string | null;
   entry_date: string;
+  /** Last day when the work spanned several days (entry_date is the first); null/absent for one day. */
+  end_date?: string | null;
   started_at: string | null;
   ended_at: string | null;
   created_at: string;

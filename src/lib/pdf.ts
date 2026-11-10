@@ -3,7 +3,7 @@ import autoTable, { CellDef, CellHookData } from 'jspdf-autotable';
 import { Customer, MonthlyReportRow, TimeEntry } from '@/types';
 import { minutesToAE, minutesToHHMM } from '@/lib/ae';
 import { GERMAN_MONTHS } from '@/lib/germanMonths';
-import { formatDateDDMMYYYY, formatEUR } from '@/lib/export';
+import { formatEntryDate, formatEUR } from '@/lib/export';
 import { formatKm, hasMaterials, hasTravel, materialAndTravelLines, sumKm } from '@/lib/materials';
 
 const ACCENT: [number, number, number] = [31, 58, 46]; // #1F3A2E
@@ -291,7 +291,7 @@ export const buildReportPdf = (
         }
 
         return [
-          formatDateDDMMYYYY(e.entry_date),
+          formatEntryDate(e),
           sessionTypeLabel(e.session_type_id),
           minutesToAE(e.duration_minutes).toFixed(1),
           minutesToHHMM(e.duration_minutes),
@@ -424,7 +424,7 @@ export const buildSessionPdf = (
   const pageWidth = doc.internal.pageSize.getWidth();
   const contentWidth = pageWidth - 2 * PAGE_MARGIN;
   const createdDate = new Date().toLocaleDateString('de-DE');
-  const date = formatDateDDMMYYYY(entry.entry_date);
+  const date = formatEntryDate(entry);
 
   const header = {
     heading: 'Session-Bericht',

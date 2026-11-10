@@ -37,6 +37,7 @@ export const useTimeEntries = () => {
       duration_minutes: number;
       notes: string | null;
       entry_date: string;
+      end_date?: string | null;
       started_at?: string | null;
       ended_at?: string | null;
       materials?: MaterialItem[];
@@ -50,6 +51,7 @@ export const useTimeEntries = () => {
         duration_minutes: data.duration_minutes,
         notes: data.notes,
         entry_date: data.entry_date,
+        ...(data.end_date ? { end_date: data.end_date } : {}),
         started_at: data.started_at ?? null,
         ended_at: data.ended_at ?? null,
         created_at: now,

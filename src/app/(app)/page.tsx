@@ -240,12 +240,14 @@ export default function DashboardPage() {
               customer_id: editingEntry.customer_id,
               session_type_id: editingEntry.session_type_id,
               entry_date: editingEntry.entry_date,
+              end_date: editingEntry.end_date,
               duration_minutes: editingEntry.duration_minutes,
               notes: editingEntry.notes ?? '',
             }}
             onSubmit={handleUpdate}
             onCancel={() => setEditingEntry(null)}
             submitLabel="Speichern"
+            allowRange
           />
         )}
       </Modal>

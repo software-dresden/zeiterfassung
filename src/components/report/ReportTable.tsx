@@ -3,14 +3,10 @@
 import { useState } from 'react';
 import { MonthlyReportRow } from '@/types';
 import { minutesToAE, minutesToHHMM } from '@/lib/ae';
+import { formatEntryDate } from '@/lib/export';
 
 const formatEUR = (value: number): string =>
   value.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
-
-const formatDateDDMMYYYY = (isoDate: string): string => {
-  const [y, m, d] = isoDate.split('-');
-  return `${d}.${m}.${y}`;
-};
 
 interface ReportTableProps {
   rows: MonthlyReportRow[];
@@ -104,7 +100,7 @@ export const ReportTable = ({ rows, sessionTypeLabel }: ReportTableProps) => {
                       {row.entries.map((entry) => (
                         <tr key={entry.id} className="border-b border-border last:border-b-0">
                           <td className="whitespace-nowrap px-3 py-2 text-text">
-                            {formatDateDDMMYYYY(entry.entry_date)}
+                            {formatEntryDate(entry)}
                           </td>
                           <td
                             className="max-w-[140px] truncate px-3 py-2 text-text"
