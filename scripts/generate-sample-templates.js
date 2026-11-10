@@ -226,16 +226,18 @@ const partiesBlock = (nameTag, addressTag) => {
   return table([row([recipient, sender])], [left, right], { lines: 'none' }) + spacer(200);
 };
 
-// Report number, date, ... on the right, like Rechnungsnummer / Rechnungsdatum on an invoice.
+// Report number, date, ... right aligned under the company address (same edge as the logo), like Rechnungsnummer / Rechnungsdatum on an invoice.
 const infoBlock = (infoLines) => {
   const left = 5300;
   const right = CW - left;
   const info = cell(
     infoLines
-      .map(([label, tag]) => para([run(`${label} `, { bold: true, color: NAVY, size: 18 }), run(tag, { size: 18 })], { after: 40 }))
+      .map(([label, tag]) =>
+        para([run(`${label} `, { bold: true, color: NAVY, size: 18 }), run(tag, { size: 18 })], { align: 'right', after: 40 })
+      )
       .join(''),
     right,
-    { padL: 400, padV: 0 }
+    { padR: 0, padV: 0 }
   );
   return table([row([cell(para(''), left, { padV: 0 }), info])], [left, right], { lines: 'none' });
 };

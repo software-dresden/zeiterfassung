@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { displayName } from '@/lib/auth';
 import { useToast } from '@/components/ui/Toast';
 import { useProfile } from '@/hooks/useProfile';
 import { useReportTemplates } from '@/hooks/useReportTemplates';
@@ -44,7 +45,7 @@ export const ExportButtons = ({
   const { monthly: hasTemplate } = useReportTemplates();
   const { username, email } = useProfile();
   const { showToast } = useToast();
-  const technicianName = username ?? email ?? 'Techniker';
+  const technicianName = displayName(username, email);
 
   const handleMainExport = async () => {
     setExporting('main');

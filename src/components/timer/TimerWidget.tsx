@@ -8,6 +8,7 @@ import { useTimeEntries } from '@/hooks/useTimeEntries';
 import { useProfile } from '@/hooks/useProfile';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
+import { displayName } from '@/lib/auth';
 import { useToast } from '@/components/ui/Toast';
 import { SignatureModal, CapturedSignatures } from '@/components/signature/SignatureModal';
 import { TimeEntry } from '@/types';
@@ -174,7 +175,7 @@ export const TimerWidget = () => {
           entry={signingEntry}
           customerName={customerName(signingEntry.customer_id)}
           sessionTypeLabel={sessionTypeLabel(signingEntry.session_type_id)}
-          technicianName={username ?? email ?? 'Techniker'}
+          technicianName={displayName(username, email)}
           onFinish={handleSignaturesDone}
         />
       )}

@@ -1,5 +1,6 @@
 'use client';
 
+import { displayName } from '@/lib/auth';
 import { useMemo, useState } from 'react';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useSessionTypes } from '@/hooks/useSessionTypes';
@@ -49,7 +50,7 @@ export const CustomerReports = () => {
 
   const customer: Customer | undefined = customers.find((c) => c.id === customerId);
   const sessionTypeLabel = (id: string) => sessionTypes.find((s) => s.id === id)?.label ?? '—';
-  const technicianName = username ?? email ?? 'Techniker';
+  const technicianName = displayName(username, email);
 
   const [yearStr, monthStr] = monthValue.split('-');
   const year = parseInt(yearStr, 10);
