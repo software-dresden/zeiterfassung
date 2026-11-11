@@ -61,6 +61,22 @@ const otherActiveAdmins = async (excludeId: string): Promise<number> => {
   return count ?? 0;
 };
 
+// All time entries (PostgREST returns at most 1000 rows per request).
+type EntryRow = { user_id: string; duration_minutes: number; entry_date: string };
+const fetchAllEntries = async (): Promise<EntryRow[]> => {
+  const rows: EntryRow[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data } = await admin
+      .from('time_entries')
+      .select('user_id, duration_minutes, entry_date')
+      .order('id')
+      .range(from, from + 999);
+    rows.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
+  return rows;
+};
+
 const translateAuthError = (message: string): string => {
   const lower = message.toLowerCase();
   if (lower.includes('already') || lower.includes('registered') || lower.includes('exists')) {
@@ -109,18 +125,42 @@ Deno.serve(async (req: Request) => {
   const action = body.action;
 
   if (action === 'list') {
-    const [{ data: usersPage, error: listError }, { data: profiles }, { data: entries }] =
+    // Presence rows older than a week are leftovers of devices that are gone.
+    await admin
+      .from('user_presence')
+      .delete()
+      .lt('last_seen_at', new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString());
+
+    const [{ data: usersPage, error: listError }, { data: profiles }, entries, { data: presence }] =
       await Promise.all([
         admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
         admin.from('profiles').select('id, username, role, disabled'),
-        admin.from('time_entries').select('user_id'),
+        fetchAllEntries(),
+        admin.from('user_presence').select('user_id, last_seen_at, timers'),
       ]);
     if (listError) return fail(translateAuthError(listError.message), 500);
 
     const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
-    const entryCounts = new Map<string, number>();
-    for (const e of entries ?? []) {
-      entryCounts.set(e.user_id, (entryCounts.get(e.user_id) ?? 0) + 1);
+    const monthStart = new Date().toISOString().slice(0, 8) + '01';
+    const stats = new Map<string, { count: number; minutes: number; month: number }>();
+    for (const e of entries) {
+      const s = stats.get(e.user_id) ?? { count: 0, minutes: 0, month: 0 };
+      s.count += 1;
+      s.minutes += e.duration_minutes ?? 0;
+      if (e.entry_date >= monthStart) s.month += 1;
+      stats.set(e.user_id, s);
+    }
+    const seen = new Map<string, string>();
+    const timersByUser = new Map<string, unknown[]>();
+    for (const row of presence ?? []) {
+      if (!seen.has(row.user_id) || row.last_seen_at > (seen.get(row.user_id) as string)) {
+        seen.set(row.user_id, row.last_seen_at);
+      }
+      const list = timersByUser.get(row.user_id) ?? [];
+      for (const t of Array.isArray(row.timers) ? row.timers : []) {
+        list.push({ ...t, reported_at: row.last_seen_at });
+      }
+      timersByUser.set(row.user_id, list);
     }
 
     const users = usersPage.users.map((u) => {
@@ -136,7 +176,11 @@ Deno.serve(async (req: Request) => {
         providers: (u.app_metadata?.providers as string[] | undefined) ?? [],
         created_at: u.created_at,
         last_sign_in_at: u.last_sign_in_at ?? null,
-        entry_count: entryCounts.get(u.id) ?? 0,
+        entry_count: stats.get(u.id)?.count ?? 0,
+        total_minutes: stats.get(u.id)?.minutes ?? 0,
+        month_entries: stats.get(u.id)?.month ?? 0,
+        last_seen_at: seen.get(u.id) ?? null,
+        timers: timersByUser.get(u.id) ?? [],
       };
     });
     return json({ users });

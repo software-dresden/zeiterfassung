@@ -87,6 +87,14 @@ IndexedDB-Datenbank: `zeiterfassung-db-<userId>` (Version 2), **eine pro Benutze
 - **Neues Supabase-Projekt:** `supabase/schema.sql` ausführen, ersten Benutzer im Auth-Dashboard
   anlegen und per `insert into profiles (id, role) values ('<id>', 'admin')` zum Admin machen, Edge
   Function `admin-users` deployen. „Allow new users to sign up“ im Auth-Dashboard ausschalten.
+- **Anwesenheit (Admin-Ansicht):** Jede geöffnete App meldet einmal pro Minute (und bei Timer-Änderungen) „ich bin da“ plus
+  ihre laufenden/pausierten Timer in die Tabelle `user_presence` (eine Zeile pro Benutzer und Gerät; `src/lib/presence.ts`,
+  `src/hooks/usePresence.ts` im `AppShell`). Gemeldet werden nur Kunde, Typ, Status und verstrichene Sekunden, keine Notizen.
+  Jeder darf nur seine eigenen Zeilen schreiben/lesen (RLS + `require aal2`); der Admin liest sie über die Edge Function
+  (Aktion `list`: `last_seen_at`, `timers`, dazu `total_minutes`, `month_entries`). Der Admin-Tab zeigt Kacheln (online, laufende
+  Timer, Sessions gesamt und im Monat) und pro Benutzer „Online“ (letzte Meldung < 3 Minuten) bzw. „Zuletzt aktiv vor …“ und
+  seine Timer; Auffrischung alle 30 s. Beim Abmelden wird die Zeile des Geräts gelöscht, Zeilen älter als 7 Tage räumt `list` auf.
+  Die Timer selbst bleiben lokal; ist ein Gerät offline/geschlossen, sieht der Admin den Stand der letzten Meldung.
 - **Bekannte Einschränkung:** Der AE-Satz liegt am (geteilten) Kunden, nicht am Eintrag. Eine
   Änderung wirkt rückwirkend auf alle Berichte aller Benutzer.
 

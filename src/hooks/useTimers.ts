@@ -10,6 +10,7 @@ export interface SessionExtras {
   travel_km?: number | null;
 }
 import { useTimeEntries } from './useTimeEntries';
+import { TIMERS_CHANGED_EVENT } from '@/lib/presence';
 
 const localDateString = (d: Date): string => {
   const y = d.getFullYear();
@@ -42,6 +43,7 @@ export const useTimers = () => {
   const commit = useCallback((next: TimerState[]) => {
     timersRef.current = next;
     setTimers(next);
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event(TIMERS_CHANGED_EVENT));
   }, []);
 
   useEffect(() => {

@@ -12,6 +12,9 @@ import {
   updateUser,
 } from '@/lib/adminApi';
 import { useProfile } from '@/hooks/useProfile';
+import { useCustomers } from '@/hooks/useCustomers';
+import { useSessionTypes } from '@/hooks/useSessionTypes';
+import { minutesToAE } from '@/lib/ae';
 import { useToast } from '@/components/ui/Toast';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -29,9 +32,42 @@ const formatDate = (iso: string | null): string =>
 
 const displayName = (user: AdminUser): string => user.username ?? user.email ?? user.id;
 
+// An open app reports once a minute; three missed reports count as "gone".
+const ONLINE_WITHIN_MS = 3 * 60 * 1000;
+
+const isOnline = (user: AdminUser, now: number): boolean =>
+  !!user.last_seen_at && now - new Date(user.last_seen_at).getTime() <= ONLINE_WITHIN_MS;
+
+const ago = (iso: string, now: number): string => {
+  const minutes = Math.max(0, Math.round((now - new Date(iso).getTime()) / 60000));
+  if (minutes < 1) return 'gerade eben';
+  if (minutes < 60) return `vor ${minutes} Min.`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `vor ${hours} Std.`;
+  return `vor ${Math.floor(hours / 24)} Tg.`;
+};
+
+const formatClock = (totalSeconds: number): string => {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const sec = totalSeconds % 60;
+  return [h, m, sec].map((v) => v.toString().padStart(2, '0')).join(':');
+};
+
+const StatTile = ({ label, value, hint }: { label: string; value: string; hint?: string }) => (
+  <div className="rounded-2xl border border-border bg-surface px-4 py-3">
+    <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">{label}</p>
+    <p className="mt-1 text-2xl font-bold tabular-nums text-text">{value}</p>
+    {hint && <p className="text-xs text-text-muted">{hint}</p>}
+  </div>
+);
+
 export default function AdminPage() {
   const { isAdmin, loading: profileLoading } = useProfile();
   const { showToast } = useToast();
+  const { customers } = useCustomers();
+  const { sessionTypes } = useSessionTypes();
+  const [now, setNow] = useState(() => Date.now());
 
   const [selfId, setSelfId] = useState<string | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -70,6 +106,30 @@ export default function AdminPage() {
   useEffect(() => {
     if (isAdmin) reload();
   }, [isAdmin, reload]);
+
+  // Live view: refresh the list every 30 seconds while the tab is open, and the clock for
+  // "online" / running timers every 5 seconds.
+  useEffect(() => {
+    if (!isAdmin) return;
+    const refresh = setInterval(() => {
+      if (document.visibilityState === 'visible') reload();
+    }, 30_000);
+    const tick = setInterval(() => setNow(Date.now()), 5_000);
+    return () => {
+      clearInterval(refresh);
+      clearInterval(tick);
+    };
+  }, [isAdmin, reload]);
+
+  const customerLabel = (id: string) => customers.find((c) => c.id === id)?.name ?? '...';
+  const typeLabel = (id: string) => sessionTypes.find((t) => t.id === id)?.label ?? '...';
+
+  const onlineUsers = users.filter((u) => isOnline(u, now));
+  const openTimers = users.flatMap((u) => u.timers.map((t) => ({ user: u, timer: t })));
+  const runningTimers = openTimers.filter((x) => x.timer.status === 'running');
+  const totalSessions = users.reduce((sum, u) => sum + u.entry_count, 0);
+  const totalMinutes = users.reduce((sum, u) => sum + u.total_minutes, 0);
+  const monthSessions = users.reduce((sum, u) => sum + u.month_entries, 0);
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
@@ -242,6 +302,27 @@ export default function AdminPage() {
 
         {loadError && <p className="mb-3 text-sm text-danger">{loadError}</p>}
 
+        {!loadingUsers && users.length > 0 && (
+          <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatTile
+              label="Jetzt online"
+              value={`${onlineUsers.length}`}
+              hint={`von ${users.length} Benutzern`}
+            />
+            <StatTile
+              label="Laufende Timer"
+              value={`${runningTimers.length}`}
+              hint={openTimers.length > runningTimers.length ? `${openTimers.length - runningTimers.length} pausiert` : undefined}
+            />
+            <StatTile
+              label="Sessions gesamt"
+              value={`${totalSessions}`}
+              hint={`${minutesToAE(totalMinutes).toFixed(1)} AE`}
+            />
+            <StatTile label="Sessions diesen Monat" value={`${monthSessions}`} />
+          </div>
+        )}
+
         {loadingUsers ? (
           <p className="text-sm text-text-muted">Laden...</p>
         ) : users.length === 0 ? (
@@ -267,6 +348,15 @@ export default function AdminPage() {
                       {isSelf && <Badge>Sie</Badge>}
                       {user.role === 'admin' && <Badge variant="success">Administrator</Badge>}
                       {user.disabled && <Badge variant="danger">Deaktiviert</Badge>}
+                      {user.has_profile && !user.disabled && (
+                        <Badge variant={isOnline(user, now) ? 'success' : 'default'}>
+                          {isOnline(user, now)
+                            ? 'Online'
+                            : user.last_seen_at
+                              ? `Zuletzt aktiv ${ago(user.last_seen_at, now)}`
+                              : 'Offline'}
+                        </Badge>
+                      )}
                       {!user.has_profile && <Badge variant="warning">Kein Zugang</Badge>}
                       {user.has_profile && (
                         <Badge variant={user.mfa_enabled ? 'success' : 'warning'}>
@@ -277,8 +367,28 @@ export default function AdminPage() {
                     <p className="truncate text-xs text-text-muted">
                       {user.username && user.email ? `${user.email} · ` : ''}
                       {user.providers.includes('github') ? 'GitHub · ' : ''}
-                      {user.entry_count} Einträge · zuletzt angemeldet {formatDate(user.last_sign_in_at)}
+                      {user.entry_count} Einträge ({minutesToAE(user.total_minutes).toFixed(1)} AE, {user.month_entries} diesen Monat) · zuletzt angemeldet {formatDate(user.last_sign_in_at)}
                     </p>
+                    {user.timers.map((t, i) => {
+                      const elapsed =
+                        t.elapsed_seconds +
+                        (t.status === 'running'
+                          ? Math.max(0, Math.floor((now - new Date(t.reported_at).getTime()) / 1000))
+                          : 0);
+                      const stale = now - new Date(t.reported_at).getTime() > ONLINE_WITHIN_MS;
+                      return (
+                        <p key={i} className="mt-0.5 truncate text-xs text-text">
+                          <span className={t.status === 'running' ? 'text-accent' : 'text-warning'}>
+                            {t.status === 'running' ? '● Läuft' : '❚❚ Pausiert'}
+                          </span>{' '}
+                          {customerLabel(t.customer_id)} · {typeLabel(t.session_type_id)} ·{' '}
+                          <span className="font-mono tabular-nums">{formatClock(elapsed)}</span>
+                          {stale && (
+                            <span className="text-text-muted"> (Stand {ago(t.reported_at, now)})</span>
+                          )}
+                        </p>
+                      );
+                    })}
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
                     {user.has_profile && (

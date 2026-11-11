@@ -105,6 +105,22 @@ export interface AdminUser {
   created_at: string;
   last_sign_in_at: string | null;
   entry_count: number;
+  /** Total recorded minutes of this user. */
+  total_minutes: number;
+  /** Sessions with an entry date in the current month. */
+  month_entries: number;
+  /** Most recent report of any of the user's open apps (null: none in the last 7 days). */
+  last_seen_at: string | null;
+  /** Timers reported by the user's devices (running or paused), with the report time. */
+  timers: AdminUserTimer[];
+}
+
+export interface AdminUserTimer {
+  customer_id: string;
+  session_type_id: string;
+  status: 'running' | 'paused';
+  elapsed_seconds: number;
+  reported_at: string;
 }
 
 export type SyncStatus = 'synced' | 'syncing' | 'offline' | 'error';

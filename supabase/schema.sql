@@ -203,3 +203,32 @@ alter default privileges for role postgres in schema public revoke all on sequen
 alter table public.time_entries add column if not exists end_date date;
 alter table public.time_entries drop constraint if exists time_entries_end_date_check;
 alter table public.time_entries add constraint time_entries_end_date_check check (end_date is null or end_date > entry_date);
+
+-- Presence: every open app reports "I am here" and its running timers once a minute, so the
+-- administrator can see who is signed in. One row per user and device; users only touch their
+-- own rows, the admin reads them through the admin-users edge function (service role).
+create table if not exists public.user_presence (
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  device_id text not null check (char_length(device_id) between 8 and 64),
+  last_seen_at timestamptz not null default now(),
+  timers jsonb not null default '[]'::jsonb
+    check (jsonb_typeof(timers) = 'array' and jsonb_array_length(timers) <= 20 and pg_column_size(timers) < 8000),
+  primary key (user_id, device_id)
+);
+alter table public.user_presence enable row level security;
+revoke all on public.user_presence from anon, public;
+revoke all on public.user_presence from authenticated;
+grant select, insert, update, delete on public.user_presence to authenticated;
+create policy "own presence select" on public.user_presence
+  for select to authenticated using (user_id = (select auth.uid()) and is_active_user());
+create policy "own presence insert" on public.user_presence
+  for insert to authenticated with check (user_id = (select auth.uid()) and is_active_user());
+create policy "own presence update" on public.user_presence
+  for update to authenticated
+  using (user_id = (select auth.uid()) and is_active_user())
+  with check (user_id = (select auth.uid()) and is_active_user());
+create policy "own presence delete" on public.user_presence
+  for delete to authenticated using (user_id = (select auth.uid()) and is_active_user());
+-- With MFA enforcement (supabase/mfa_enforcement.sql) also add:
+--   create policy "require aal2" on public.user_presence as restrictive for all to authenticated
+--     using ((select auth.jwt() ->> 'aal') = 'aal2') with check ((select auth.jwt() ->> 'aal') = 'aal2');

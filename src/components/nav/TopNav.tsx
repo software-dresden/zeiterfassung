@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { clearPresence } from '@/lib/presence';
 import { useProfile } from '@/hooks/useProfile';
 import { SyncStatus } from './SyncStatus';
 import { SyncStatus as SyncStatusType } from '@/types';
@@ -38,6 +39,7 @@ export const TopNav = ({ syncStatus }: TopNavProps) => {
   const visibleNavItems = isAdmin ? [...navItems, adminNavItem] : navItems;
 
   const handleLogout = async () => {
+    await clearPresence();
     await supabase.auth.signOut();
     router.push('/login');
   };

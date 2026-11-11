@@ -7,6 +7,7 @@ import { setDbUser } from '@/lib/db';
 import { SYNC_REJECTED_EVENT } from '@/lib/sync';
 import { TopNav } from '@/components/nav/TopNav';
 import { useSync } from '@/hooks/useSync';
+import { usePresence } from '@/hooks/usePresence';
 import { ProfileProvider } from '@/hooks/useProfile';
 import { MfaGate } from '@/components/auth/MfaGate';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
@@ -14,8 +15,9 @@ import { ToastProvider, useToast } from '@/components/ui/Toast';
 // Everything below this point may use the local database, the sync engine and
 // the profile, so it only mounts once the signed-in user (and with it the
 // per-user database) is known.
-function AppShell({ children }: { children: ReactNode }) {
+function AppShell({ children, userId }: { children: ReactNode; userId: string }) {
   const { syncStatus } = useSync();
+  usePresence(userId);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -87,7 +89,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <MfaGate>
       <ProfileProvider userId={userId}>
         <ToastProvider>
-          <AppShell>{children}</AppShell>
+          <AppShell userId={userId}>{children}</AppShell>
         </ToastProvider>
       </ProfileProvider>
     </MfaGate>
