@@ -7,6 +7,9 @@ export interface Customer {
   active: boolean;
   created_at: string;
   updated_at: string;
+  /** SelectLine customer number; set only by the import (edge function "selectline"). Null: old app customer. */
+  sl_number?: string | null;
+  sl_synced_at?: string | null;
 }
 
 export interface SessionType {
@@ -20,6 +23,8 @@ export interface SessionType {
 export interface MaterialItem {
   name: string;
   menge: string;
+  /** SelectLine article number, when the material was picked from the SelectLine articles. */
+  artikel?: string | null;
 }
 
 export interface TimeEntry {
@@ -45,6 +50,10 @@ export interface TimeEntry {
   materials?: MaterialItem[];
   /** Kilometers driven to the customer; informational only (no price). */
   travel_km?: number | null;
+  /** SelectLine Auftrag chosen by the technician (null: automatic). Fixed once transferred. */
+  sl_order_key?: string | null;
+  /** SelectLine article for the working time. Entries without it are not transferred. */
+  sl_article_number?: string | null;
 }
 
 export interface SyncQueueItem {

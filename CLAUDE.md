@@ -258,6 +258,31 @@ in „Neue Erfassung“ und im Bearbeiten-Formular, die Dauer ist die Gesamtdaue
 (`src/lib/export.ts`: „01.01.2027 – 10.01.2027“, Word-Feld `datum`). Monatsberichte und Filter ordnen den Eintrag nach dem
 **Startdatum** zu (ein Zeitraum über den Monatswechsel zählt ganz im Startmonat).
 
+## SelectLine-Anbindung (im Aufbau, noch AUS)
+
+Ziel: Kunden, Artikel und Mitarbeiter kommen aus SelectLine neo (Premium, eigener Server im Büro), jede Session wird beim
+Speichern automatisch als Position in einen SelectLine-**Auftrag** (Belegart `F`) geschrieben, Änderungen folgen. Stand: Datenbank
+und Edge Function sind gebaut und getestet, die App-Oberfläche fehlt noch, die echte SelectLine-API (AppKey, Lizenz) ebenfalls.
+
+- **Datenbank** (`supabase/selectline.sql`, Migration `selectline_foundation`): `customers.sl_number` (Import-Kunden; ohne
+  Nummer = alter App-Kunde „Alt“), `profiles.sl_employee_number`, `time_entries.sl_order_key` / `sl_article_number`, Tabellen
+  `sl_settings` (Kill-Switch `enabled`, Standard **aus**; KM-Artikel), `sl_articles`, `sl_employees`, `sl_transfers` (Status pro
+  Session, Positions-IDs), `sl_audit_log` (12 Monate). Clients lesen nur `sl_settings`, `sl_articles` und eigene `sl_transfers`;
+  geschrieben wird alles nur von der Edge Function. Trigger: SelectLine-Kunden sind in der App nicht änderbar, eine übertragene
+  Session ist nicht löschbar, Kunde/Auftrag fest (Fehlerklasse 42 → die Sync verwirft die Änderung).
+- **Edge Function** `supabase/functions/selectline/` (`index.ts` Aktionen + Rechte, `client.ts` SelectLine-API, `positions.ts`
+  Positionen/Text/Mengen, `transfer.ts` Ablauf). Aktionen: `transfer` (eigene Session; Admin = Retry), `openOrders`, und nur Admin:
+  `overview`, `settings`, `setEmployee`, `import`, `test`. Verlangt aal2, Rate-Limit 60 Aufrufe/10 Min., Sperre pro Session,
+  speichert den Zwischenstand nach jedem Schritt (kein doppelter Auftrag), meldet sich immer ab (API-Login belegt eine Lizenz).
+  Keine Preise: SelectLine nimmt sie aus den Artikeln. Mengen: Std/Min/AE, unbekannte Einheit → Fehler statt Raten.
+- **Regeln:** Ohne gewählten Auftrag wird nur dann automatisch einer angelegt, wenn der Kunde keinen offenen hat. Erledigter
+  Auftrag → neuer Auftrag. Entfallene Teile (z. B. km) werden auf Menge 0 gesetzt, nicht gelöscht (API-Benutzer ohne Löschrecht).
+  Unterschriften gehen vorerst nur als Textvermerk mit (Bild-Upload pro Beleg, offene Frage an SelectLine).
+- **Secrets** (nur der Inhaber setzt sie, nie in Code/Chat): `SL_BASE_URL` (nur https), `SL_USERNAME`, `SL_PASSWORD`, `SL_APPKEY`,
+  `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET` (Cloudflare Tunnel + Access). Ohne Secrets antwortet die Function „nicht eingerichtet“.
+- **Tests:** `npm run test:selectline` (gegen den Fake-Server `scripts/selectline-mock.mjs`). Mit der echten Swagger prüfen
+  (im Code „VERIFY“): Format des documentKey, Feld der Kundennummer im gelesenen Beleg, Authorization-Header.
+
 ## Export & Versand
 
 Abrechnung als PDF, CSV (Semikolon, UTF-8 mit BOM) und TXT (`src/lib/export.ts`). Pro Session gibt es

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:selectline": "node scripts/test-selectline.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.78.0",
